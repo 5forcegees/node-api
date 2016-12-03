@@ -1,24 +1,26 @@
-// BASE SETUP
-// =============================================================================
-
-// call the packages we need
 var express    = require('express');
 var bodyParser = require('body-parser');
 var app        = express();
 var morgan     = require('morgan');
 
+// seed the db from the client scripts
+var db_seed = require('./scripts/db_seed');
+db_seed.populate_db();
+
 // configure app
 app.use(morgan('dev')); // log requests to the console
 
 // configure body parser
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(bodyParser.urlencoded());
 
 var port     = process.env.PORT || 8080; // set our port
 
 var mongoose   = require('mongoose');
-mongoose.connect('mongodb://node:node@novus.modulusmongo.net:27017/Iganiq8o'); // connect to our database
-var Bear     = require('./app/models/bear');
+mongoose.connect('mongodb://localhost:27017/phase1'); // connect to our database
+var Cart     = require('./app/models/cart');
+var User     = require('./app/models/user');
+var Product     = require('./app/models/product');
+
 
 // ROUTES FOR OUR API
 // =============================================================================
@@ -35,82 +37,90 @@ router.use(function(req, res, next) {
 
 // test route to make sure everything is working (accessed at GET http://localhost:8080/api)
 router.get('/', function(req, res) {
-	res.json({ message: 'hooray! welcome to our api!' });	
+	res.json({ message: 'Welcome to our API' });
 });
 
-// on routes that end in /bears
+// on routes that end in /reviewCart
 // ----------------------------------------------------
-router.route('/bears')
-
-	// create a bear (accessed at POST http://localhost:8080/bears)
-	.post(function(req, res) {
-		
-		var bear = new Bear();		// create a new instance of the Bear model
-		bear.name = req.body.name;  // set the bears name (comes from the request)
-
-		bear.save(function(err) {
-			if (err)
-				res.send(err);
-
-			res.json({ message: 'Bear created!' });
-		});
-
-		
+router.get('/reviewCart', function(req, res) {
+	Cart.find({product: /^.+$/ }, function (err, result){
+		if (err) {
+			res.send(err);
+		} else {
+			if (result.length) {
+				res.json(result);
+			} else {
+				res.json({message: 'no cart contents'});
+			}
+		}
 	})
+});
 
-	// get all the bears (accessed at GET http://localhost:8080/api/bears)
-	.get(function(req, res) {
-		Bear.find(function(err, bears) {
-			if (err)
-				res.send(err);
-
-			res.json(bears);
-		});
-	});
-
-// on routes that end in /bears/:bear_id
+// on routes that end in /reviewCart
 // ----------------------------------------------------
-router.route('/bears/:bear_id')
-
-	// get the bear with that id
-	.get(function(req, res) {
-		Bear.findById(req.params.bear_id, function(err, bear) {
-			if (err)
+router.post('/addToCart', function(req, res) {
+	var productId = '';
+	var product = '';
+	if (req.body.productId) {
+		productId = req.body.productId;
+		Product.find({product: new RegExp(productId)}, function (err, result) {
+			if (err) {
 				res.send(err);
-			res.json(bear);
+			} else {
+				if (result.length) {
+					console.log('result', result[0]);
+
+					var addCart = new Cart();
+					addCart.product = result[0].product;
+					addCart.save(function (err) {
+						if (err) {
+							console.log('error loading product');
+						} else {
+							console.log('populating db with cart ', addCart.product);
+							res.json(addCart);
+						}
+					});
+				} else {
+					res.json({message: 'no matching products'})
+				}
+			}
 		});
+
+	}
+});
+
+// routes that end with /login
+router.post('/login', function (req, res, next) {
+	User.find({name: req.body.name, password: req.body.password }, function (err, result){
+		if (err) {
+			res.send(err);
+		} else {
+			if (result.length) {
+				res.json({success: true});
+			} else {
+				res.json({success: false});
+			}
+		}
 	})
+});
 
-	// update the bear with this id
-	.put(function(req, res) {
-		Bear.findById(req.params.bear_id, function(err, bear) {
-
-			if (err)
-				res.send(err);
-
-			bear.name = req.body.name;
-			bear.save(function(err) {
-				if (err)
-					res.send(err);
-
-				res.json({ message: 'Bear updated!' });
-			});
-
-		});
+router.post('/search', function (req, res, next) {
+	var searchCriteria = '';
+	if (req.body.criteria) {
+		searchCriteria = req.body.criteria.toString();
+	}
+	Product.find({product: new RegExp(searchCriteria, 'i') }, function(err, result) {
+		if (err){
+			res.send(err);
+		} else {
+			if (result.length){
+				res.json(result);
+			} else {
+				res.json({message: 'no matching products'})
+			}
+		}
 	})
-
-	// delete the bear with this id
-	.delete(function(req, res) {
-		Bear.remove({
-			_id: req.params.bear_id
-		}, function(err, bear) {
-			if (err)
-				res.send(err);
-
-			res.json({ message: 'Successfully deleted' });
-		});
-	});
-
+});
 
 // REGISTER OUR ROUTES -------------------------------
 app.use('/api', router);
