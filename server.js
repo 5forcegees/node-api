@@ -14,7 +14,6 @@ app.use(morgan('dev')); // log requests to the console
 app.use(bodyParser.urlencoded());
 
 var port     = process.env.PORT || 8080; // set our port
-
 var mongoose   = require('mongoose');
 mongoose.connect('mongodb://localhost:27017/phase1'); // connect to our database
 var Cart     = require('./app/models/cart');
@@ -22,7 +21,7 @@ var User     = require('./app/models/user');
 var Product     = require('./app/models/product');
 
 
-// ROUTES FOR OUR API
+// ROUTES
 // =============================================================================
 
 // create our router
@@ -75,13 +74,15 @@ router.post('/addToCart', function(req, res) {
 					addCart.save(function (err) {
 						if (err) {
 							console.log('error loading product');
+							res.json({success: false, message: addCart});
+
 						} else {
 							console.log('populating db with cart ', addCart.product);
-							res.json(addCart);
+							res.json({success: true, message: addCart});
 						}
 					});
 				} else {
-					res.json({message: 'no matching products'})
+					res.json({success: false, message: 'no matching products'})
 				}
 			}
 		});
@@ -96,9 +97,9 @@ router.post('/login', function (req, res, next) {
 			res.send(err);
 		} else {
 			if (result.length) {
-				res.json({success: true});
+				res.json({success: true, message: 'Login successful'});
 			} else {
-				res.json({success: false});
+				res.json({success: false, message: 'Username and/or Password incorrect'});
 			}
 		}
 	})
@@ -114,9 +115,9 @@ router.post('/search', function (req, res, next) {
 			res.send(err);
 		} else {
 			if (result.length){
-				res.json(result);
+				res.json({success: true, message: result});
 			} else {
-				res.json({message: 'no matching products'})
+				res.json({success: false, message: 'no matching products'})
 			}
 		}
 	})
