@@ -3,8 +3,7 @@ var Cart     = require('./../app/models/cart');
 var User     = require('./../app/models/user');
 var Product     = require('./../app/models/product');
 
-// this script populates the db with the json data provided by the client to use for development
-// in testing and production this will already be integrated so populating the data won't be needed
+// this script populates the db with the json data provided by the client
 exports.populate_db = function () {
     var cartContents = require('./seed_data/cartInitialization.json');
     Cart.find({product: cartContents.product }, function(err, existingCart) {
